@@ -1,0 +1,111 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "actions": {
+            "For_each": {
+                "actions": {
+                    "Send_an_email_(V2)": {
+                        "inputs": {
+                            "body": {
+                                "Body": "<p>Hi@{items('For_each')['Requester']}<br>\n<br>\nThe below Service Principal would expire on : @{items('For_each')['expires']}<br>\n<br>\nSP Name: @{items('For_each')['SPName']}<br>\n<br>\nAzure Key Vault ID : @{items('For_each')['keyvaultID']}<br>\n<br>\nGet in touch with the Azure AD Team (adidentity@emirates.com) to get the new secret for service principal.<br>\n<br>\nThanks,<br>\n<br>\nAzure Active Directory Team</p>",
+                                "Subject": "Service Principal expiry Notification for : @{items('For_each')['SPName']}",
+                                "To": "@items('For_each')['notifyemail']"
+                            },
+                            "host": {
+                                "connection": {
+                                    "name": "@parameters('$connections')['office365']['connectionId']"
+                                }
+                            },
+                            "method": "post",
+                            "path": "/v2/Mail"
+                        },
+                        "runAfter": {},
+                        "type": "ApiConnection"
+                    }
+                },
+                "foreach": "@triggerBody()",
+                "runAfter": {
+                    "Initialize_variable": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Foreach"
+            },
+            "Initialize_variable": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "Tags1",
+                            "type": "string",
+                            "value": "Test User"
+                        }
+                    ]
+                },
+                "runAfter": {},
+                "type": "InitializeVariable"
+            }
+        },
+        "contentVersion": "1.0.0.0",
+        "outputs": {},
+        "parameters": {
+            "$connections": {
+                "defaultValue": {},
+                "type": "Object"
+            }
+        },
+        "triggers": {
+            "manual": {
+                "inputs": {
+                    "method": "POST",
+                    "schema": {
+                        "items": {
+                            "properties": {
+                                "Name": {
+                                    "type": "string"
+                                },
+                                "Requester": {
+                                    "type": "string"
+                                },
+                                "SPName": {
+                                    "type": "string"
+                                },
+                                "expires": {
+                                    "type": "string"
+                                },
+                                "keyvaultID": {
+                                    "type": "string"
+                                },
+                                "notifyemail": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "Name",
+                                "Requester",
+                                "SPName",
+                                "expires",
+                                "keyvaultID",
+                                "notifyemail"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    }
+                },
+                "kind": "Http",
+                "type": "Request"
+            }
+        }
+    },
+    "parameters": {
+        "$connections": {
+            "value": {
+                "office365": {
+                    "connectionId": "/subscriptions/SUBSCRIPTIONID/resourceGroups/RESOURCEGROUPNAME/providers/Microsoft.Web/connections/office365-2",
+                    "connectionName": "office365-2",
+                    "id": "/subscriptions/SUBSCRIPTIONID/providers/Microsoft.Web/locations/northeurope/managedApis/office365"
+                }
+            }
+        }
+    }
+}

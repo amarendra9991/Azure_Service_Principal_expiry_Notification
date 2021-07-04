@@ -1,0 +1,43 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+resources:
+    - repo: self
+
+schedules:
+- cron: "30 7 * * *"
+  displayName: Daily Keyvault Expiry Notification Cron 
+  branches:
+    include:
+    - feature/*
+    exclude:
+    - master
+  always: true    
+
+pool:
+  vmImage: 'ubuntu-latest'
+steps:
+- task: AzureCLI@2
+  inputs:
+    azureSubscription: 'Vault-Connection'   # Azure Service principal details
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      echo $(pwd)
+      echo `ls -l`
+      #expiryBefore=$(date --date="30 day" +"%Y-%m-%d")
+      today=$(date +"%Y-%m-%d")
+      echo $today
+      expiryBefore=$(date -d "$today 15 days" +%Y-%m-%d)
+      echo $expiryBefore
+      #=================Send Notification to Microsoft Teams ==============================
+      #az keyvault secret list --vault-name mneu-p-i-corevault-002 --query "[?attributes.enabled==\`true\` && attributes.expires <= \`$expiryBefore\`].{ expires: attributes.expires,  Requester: tags.Requester, SPName: tags.Name }" -o json > list.json
+      #keyvaultlist=`cat list.json`
+      #curl -H 'Content-Type: application/json' -d "{"text": '$keyvaultlist'}" PUT THE URL OF TEAMS WEBHOOK URL
+      #=================Send Notification to Microsoft Logic Apps ==============================
+      az keyvault secret list --vault-name mneu-p-i-corevault-002 --query "[?attributes.enabled==\`true\` && attributes.expires <= \`$expiryBefore\`].{Name:name, keyvaultID: id,  expires: attributes.expires, notifyemail: tags.NotifyEmail, Requester: tags.Requester, SPName: tags.Name }" -o json > output.json
+      keyvaultlist=`cat output.json`
+      #for i in `seq 0 $(cat ./output.json | jq -r '. | length')`; do echo $i; sleep 2;SPName=$(cat ./output.json | jq -r '.['$i'].SPName'); echo $SPName; Requester=$(cat ./output.json | jq -r '.['$i'].Requester' | sed "s/ /%20/"); echo $Requester; keyvaultID=$(cat ./output.json | jq -r '.['$i'].keyvaultID'); echo $keyvaultID ;spkeyname=$(cat ./output.json | jq -r '.['$i'].Name'); echo $spkeyname ; email=$(cat ./output.json | jq -r '.['$i'].notifyemail'); echo $email;  expiryBefore=$(cat ./output.json | jq -r '.['$i'].expires');echo $expiryBefore; curl -i -d "$keyvaultlist" -H "Accept: application/json" -H "Content-Type: application/json" -X POST 'https://prod-27.northeurope.logic.azure.com:443/workflows/655839965aa540db812eb686312d3b3d/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=y7qva8Dp5E30-e5mle_1XAMpsprXS6B58CUtH5c3a4w'; done
+      curl  -d "$keyvaultlist" -H "Accept: application/json" -H "Content-Type: application/json" -X POST 'PUT THE LOGIC APP HTTP ENDPOINT URL';
+    addSpnToEnvironment: true
